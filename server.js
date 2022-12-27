@@ -5,9 +5,12 @@ let mysql = require('mysql');
 const cors = require('cors');
 const multer = require('multer'); 
 const upload = multer({ dest: 'uploads/' });
+const MongoClient = require('mongodb').MongoClient;
+
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+
 app.use(cors());
 app.use(cors({ origin: 'http://localhost:8080' }));
 app.use(cors({ origin: '*' }));
@@ -22,29 +25,53 @@ app.get('/', (req, res) => {
 })
 
 // connection to mysql database
-let dbConnection = mysql.createConnection({
-    host: 'localhost',
-    port: '3306',
-    user: 'root',
-    password: 'root',
-    database: 'nodejs_api'
-})
-dbConnection.connect();
+// let dbConnection = mysql.createConnection({
+//     host: 'localhost',
+//     port: '3306',
+//     user: 'root',
+//     password: 'root',
+//     database: 'nodejs_api'
+// })
+// dbConnection.connect();
+
+MongoClient.connect('mongodb://dev01:zjkoC%5D6p@192.168.1.122:27017/?authMechanism=DEFAULT&authSource=admin', (err, client) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  const db = client.db('mydatabase');
+});
 
 // retrieve all fruits 
-app.get('/getdatafruit', (req, res) => {
-    dbConnection.query('SELECT * FROM fruits', (error, results, fields) => {
-        if (error) throw error;
+MongoClient.connect('mongodb://dev01:zjkoC%5D6p@192.168.1.122:27017/?authMechanism=DEFAULT&authSource=admin', (err, client) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  const db = client.db('admin');
 
-        let message = ""
-        if (results === undefined || results.length == 0) {
-            message = "Fruits table is empty";
-        } else {
-            message = "Successfully retrieved all fruits";
-        }
-        return res.send({ data: results, message: message});
-    })
-})
+  // Define the file upload endpoint
+  app.get('/getdatafruit', (req, res) => {
+    db.collection('fruits').find().toArray((err, results) => {
+      if (err) {
+        console.error(err);
+        return res.sendStatus(500);
+      }
+  
+      let message = "";
+      if (results.length === 0) {
+        message = "No documents found in the collection";
+      } else {
+        message = "Successfully retrieved all documents";
+      }
+  
+
+  
+      return res.send({ data: results, message: message });
+    });
+  });
+});
+
 
 // add a new fruit
 // app.post('/addfruit', (req, res) => {
@@ -61,27 +88,57 @@ app.get('/getdatafruit', (req, res) => {
 //         })
 //     }
 // });
-app.post('/upload', upload.single('photo'), (req, res) => {
+MongoClient.connect('mongodb://dev01:zjkoC%5D6p@192.168.1.122:27017/?authMechanism=DEFAULT&authSource=admin', (err, client) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+  const db = client.db('admin');
+
+  // Define the file upload endpoint
+  app.post('/upload', upload.single('photo'), (req, res) => {
     // extract the value and photo from the request body
     let name = req.body.name;
     let author = req.body.author;
     let photo = req.file;
   
     // validate the input
-    if (!name || !author ||  !photo) {
-      return res.status(400).send({ message: 'Please provide a value and a photo.' });
+    if (!name || !author || !photo) {
+      return res.status(400).send({ message: 'Please provide a value, author, and photo.' });
     }
   
     // insert the value and photo into the database
-    dbConnection.query(
-      'INSERT INTO fruits (name, author, photo) VALUES (?, ?, ?)',
-      [name, author, photo.path],
-      (error, results, fields) => {
-        if (error) throw error;
-        return res.send({ message: 'Value and photo successfully added.' });
+    db.collection('fruits').insertOne({ name: name, author: author, photo: photo.path }, (err, result) => {
+      if (err) {
+        console.error(err);
+        return res.sendStatus(500);
       }
-    );
+      return res.send({ message: 'Value and photo successfully added.' });
+    });
   });
+});
+
+
+// app.post('/upload', upload.single('photo'), (req, res) => {
+//     // extract the value and photo from the request body
+//     let name = req.body.name;
+//     let author = req.body.author;
+//     let photo = req.file;
+  
+//     // validate the input
+//     if (!name || !author ||  !photo) {
+//       return res.status(400).send({ message: 'Please provide a value and a photo.' });
+//     }
+  
+//     // insert the value and photo into the database
+//     db.collection('fruits').insertOne({ name: name, author: author, photo: photo.path }, (err, result) => {
+//         if (err) {
+//           console.error(err);
+//           return res.sendStatus(500);
+//         }
+//         return res.send({ message: 'Value and photo successfully added.' });
+//       });
+//   });
 
 // retrieve fruit by name 
 app.get('/getdatafruit/:name', (req, res) => {
