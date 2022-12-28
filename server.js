@@ -7,6 +7,7 @@ const multer = require('multer');
 const upload = multer({ dest: 'uploads/' });
 const MongoClient = require('mongodb').MongoClient;
 const mongodb = require('mongodb');
+const fs = require('fs');
 const mongoUrl = 'mongodb://dev01:zjkoC%5D6p@192.168.1.122:27017/?authMechanism=DEFAULT&authSource=admin';
 
 app.use(bodyParser.json());
@@ -51,21 +52,24 @@ app.get('/getdatafruit', (req, res) => {
 app.post('/upload', upload.single('photo'), (req, res) => {
   let name = req.body.name;
   let photo = req.file;
+  console.log(photo)
   if (!name || !photo) {
     return res.status(400).send({ message: 'Please provide a value, and photo.' });
   }
+  const photoData = fs.readFileSync(photo.path);
+  const photoBase64 = Buffer.from(photoData).toString('base64');
   mongodb.MongoClient.connect(mongoUrl, (err, client) => {
     if (err) throw err;
     const db = client.db('admin');
     const collection = db.collection('fruits');
-    collection.insertOne({ name: name, photo: photo.path }, (err, result) => {
+    collection.insertOne({ name: name, photo: photoBase64 }, (err, result) => {
       if (err) {
         console.error(err);
         return res.sendStatus(500);
       }
       return res.send({ message: 'Value and photo successfully added.' });
     });
-  });
+  })
 });
 
 
