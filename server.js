@@ -68,27 +68,33 @@ app.post('/upload', upload.single('photo'), (req, res) => {
   });
 });
 
-app.get('/getdatafruit/:name', (req, res) => {
-  let name = req.params.name;
-  if (!name) {
-    return res.status(400).send({ message: 'Please provide fruit name' });
-  } else {
-    mongodb.MongoClient.connect(mongoUrl, (err, client) => {
+
+app.get('/searchdatafruit', (req, res) => {
+  let name = req.query.name;
+
+  mongodb.MongoClient.connect(mongoUrl, { useNewUrlParser: true }, (err, client) => {
+    if (err) throw err;
+    const db = client.db('admin');
+    const collection = db.collection('fruits');
+
+    let query;
+    if (!name || name === '') {
+      query = {};
+    } else {
+      query = { name: new RegExp('^' + name) };
+    }
+
+    collection.find(query).toArray((err, result) => {
       if (err) throw err;
-      const db = client.db('admin');
-      const collection = db.collection('fruits');
-      collection.findOne({ name: name }, (err, result) => {
-        if (err) throw err;
-        let message = '';
-        if (!result) {
-          message = 'fruit not found';
-        } else {
-          message = 'Successfully retrieved fruit data';
-        }
-        return res.send({ data: result, message: message });
-      });
+      let message = '';
+      if (!result) {
+        message = 'fruit not found';
+      } else {
+        message = 'Successfully retrieved fruit data';
+      }
+      return res.send({ data: result, message: message });
     });
-  }
+  });
 });
 
 // delete fruit by name
